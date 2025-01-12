@@ -1,11 +1,12 @@
 
+import get_address from "../rev_geocoding/rev_geocoding_functions.js";
 import client from "./db_connection.js";
 
-async function addLog(phoneNumber, longitude, latitude, city) {
+async function addLog(phoneNumber, longitude, latitude) {
   try {
       const database = client.db("women_safety");
       const logs = database.collection("logs");
-      
+      const city = get_address(latitude,longitude);
       const logDoc = {
           phoneNumber: phoneNumber,
           longitude: longitude,
@@ -22,11 +23,11 @@ async function addLog(phoneNumber, longitude, latitude, city) {
   }
 }
 
-async function addDetailedLog(phoneNumber, longitude, latitude, area, landmark, description, city) {
+async function addDetailedLog(phoneNumber, longitude, latitude, area, landmark, description) {
   try {
       const database = client.db("women_safety");
       const detailedLogs = database.collection("detailed_logs");
-      
+      const city = get_address(latitude,longitude);
       const detailedLogDoc = {
           phoneNumber: phoneNumber,
           longitude: longitude,
@@ -44,6 +45,63 @@ async function addDetailedLog(phoneNumber, longitude, latitude, area, landmark, 
       console.error("Error adding detailed log:", error);
       throw error;
   }
+}
+
+async function getLogs(phoneNumber, startDate = null, endDate = null) {
+    try {
+        const database = client.db("women_safety");
+        const logs = database.collection("logs");
+        
+        let query = { phoneNumber: phoneNumber };
+        
+      
+        if (startDate || endDate) {
+            query.timestamp = {};
+            if (startDate) {
+                query.timestamp.$gte = new Date(startDate);
+            }
+            if (endDate) {
+                query.timestamp.$lte = new Date(endDate);
+            }
+        }
+
+        const result = await logs.find(query)
+            .sort({ timestamp: -1 }) 
+            .toArray();
+            
+        return result;
+    } catch (error) {
+        console.error("Error fetching logs:", error);
+        throw error;
+    }
+}
+
+async function getDetailedLogs(phoneNumber, startDate = null, endDate = null) {
+    try {
+        const database = client.db("women_safety");
+        const detailedLogs = database.collection("detailed_logs");
+        
+        let query = { phoneNumber: phoneNumber };
+        
+        if (startDate || endDate) {
+            query.timestamp = {};
+            if (startDate) {
+                query.timestamp.$gte = new Date(startDate);
+            }
+            if (endDate) {
+                query.timestamp.$lte = new Date(endDate);
+            }
+        }
+
+        const result = await detailedLogs.find(query)
+            .sort({ timestamp: -1 }) 
+            .toArray();
+            
+        return result;
+    } catch (error) {
+        console.error("Error fetching detailed logs:", error);
+        throw error;
+    }
 }
 
 
@@ -139,4 +197,4 @@ async function registerUser(phoneNumber) {
   }
 }
 
-export {addDetailedLog,addLog,addSosContact,registerUser,removeSosContact,getSosContacts}
+export {addDetailedLog,addLog,addSosContact,registerUser,removeSosContact,getSosContacts,getLogs,getDetailedLogs}
