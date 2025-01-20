@@ -197,4 +197,16 @@ async function registerUser(phoneNumber) {
   }
 }
 
-export {addDetailedLog,addLog,addSosContact,registerUser,removeSosContact,getSosContacts,getLogs,getDetailedLogs}
+async function save_settings(email, address) {
+  try {
+      const database = client.db("women_safety");
+      const profile = database.collection("profile");
+      const result = await profile.insertOne({email, address});
+      return result;
+  } catch (error) {
+      console.error("Error saving settings:", error);
+      throw error;
+  }
+}
+
+export {addDetailedLog,addLog,addSosContact,registerUser,removeSosContact,getSosContacts,getLogs,getDetailedLogs,save_settings}
