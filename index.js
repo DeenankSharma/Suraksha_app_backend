@@ -259,3 +259,18 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running at: ${PORT}`);
 });
+
+app.post('/save_settings', async (req, res) => {
+    try {
+        const { email, address } = req.body;
+        if(!email) email=""
+        if(!address) address=""
+        const result = await save_settings(email, address);
+        res.send(result);
+    } catch (error) {
+        console.error('Error in save settings route:', error);
+        res.status(500).json({
+            error: 'Internal server error'
+        });
+    }
+})
