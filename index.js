@@ -5,6 +5,8 @@ import get_address from "./rev_geocoding/rev_geocoding_functions.js"
 import cors from "cors"
 import client from "./db/db_connection.js"
 import { addDetailedLog, addLog, addSosContact, registerUser, removeSosContact, getSosContacts, getLogs, getDetailedLogs } from "./db/db_functions.js"
+import sendSMS from "./sms/sms_connection.js"
+import createMessage from "./sms/twilio.js"
 
 
 
@@ -26,9 +28,10 @@ app.post('/emergency', async (req, res) => {
                 error: 'Missing required fields'
             });
         }
-
+        const response = await createMessage(phoneNumber,`latitude - ${latitude} + longitude - ${longitude}`)
+        if(response.status === 200){
         const result = await addLog(phoneNumber, longitude, latitude);
-
+        }
         res.status(201).json({
             success: true,
             message: 'Emergency logged successfully',
@@ -61,9 +64,10 @@ app.post('/descriptive_emergency', async (req, res) => {
         }
 
         const city = await get_address(latitude,longitude);
-        console.log("kdhksdnvdfvh");
-        console.log(city);
 
+        const response = await createMessage(phoneNumber,`latitude - ${latitude} + longitude - ${longitude} + area - ${area} + landmark - ${landmark} + city - ${city} + description - ${description}`)
+   
+        if(response.status === 200){
         const result = await addDetailedLog(
             phoneNumber,
             longitude,
@@ -73,7 +77,7 @@ app.post('/descriptive_emergency', async (req, res) => {
             description,
             city
         );
-
+    }
         res.status(201).json({
             success: true,
             message: 'Detailed emergency logged successfully',
