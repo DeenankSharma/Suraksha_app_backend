@@ -5,7 +5,7 @@ import get_address from "./rev_geocoding/rev_geocoding_functions.js"
 import cors from "cors"
 import client from "./db/db_connection.js"
 import { addDetailedLog, addLog, addSosContact, registerUser, removeSosContact, getSosContacts, getLogs, getDetailedLogs } from "./db/db_functions.js"
-// import { getLogs } from "viem/actions"
+
 
 
 
@@ -19,15 +19,15 @@ client.connect();
 
 app.post('/emergency', async (req, res) => {
     try {
-        const { phoneNumber, longitude, latitude, city } = req.body;
+        const { phoneNumber, longitude, latitude } = req.body;
 
-        if (!phoneNumber || !longitude || !latitude || !city) {
+        if (!phoneNumber || !longitude || !latitude) {
             return res.status(400).json({
                 error: 'Missing required fields'
             });
         }
 
-        const result = await addLog(phoneNumber, longitude, latitude, city);
+        const result = await addLog(phoneNumber, longitude, latitude);
 
         res.status(201).json({
             success: true,
@@ -51,15 +51,18 @@ app.post('/descriptive_emergency', async (req, res) => {
             latitude,
             area,
             landmark,
-            description,
-            city
+            description
         } = req.body;
 
-        if (!phoneNumber || !longitude || !latitude || !area || !description || !city) {
+        if (!phoneNumber || !longitude || !latitude || !area || !description) {
             return res.status(400).json({
                 error: 'Missing required fields'
             });
         }
+
+        const city = await get_address(latitude,longitude);
+        console.log("kdhksdnvdfvh");
+        console.log(city);
 
         const result = await addDetailedLog(
             phoneNumber,
@@ -93,6 +96,7 @@ app.get('/get_logs', async (req, res) => {
             });
         }
         const logs = await getLogs(phoneNumber);
+        console.log(logs);
         res.status(200).json({
             success: true,
             logs: logs

@@ -6,7 +6,7 @@ async function addLog(phoneNumber, longitude, latitude) {
   try {
       const database = client.db("women_safety");
       const logs = database.collection("logs");
-      const city = get_address(latitude,longitude);
+      const city = await get_address(latitude,longitude);
       const logDoc = {
           phoneNumber: phoneNumber,
           longitude: longitude,
@@ -27,7 +27,7 @@ async function addDetailedLog(phoneNumber, longitude, latitude, area, landmark, 
   try {
       const database = client.db("women_safety");
       const detailedLogs = database.collection("detailed_logs");
-      const city = get_address(latitude,longitude);
+      const city = await get_address(latitude,longitude);
       const detailedLogDoc = {
           phoneNumber: phoneNumber,
           longitude: longitude,
