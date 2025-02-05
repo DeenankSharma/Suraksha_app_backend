@@ -20,6 +20,7 @@ const sendSMS = async (phoneNumber, message) => {
     };
 
     const response = await axios(config);
+    console.log("SMS sent successfully. The response is: ", response);
     return response;
   } catch (error) {
     console.error('SMS sending failed:', error);

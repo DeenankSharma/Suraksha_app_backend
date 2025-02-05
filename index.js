@@ -7,8 +7,9 @@ import client from "./db/db_connection.js"
 import { addDetailedLog, addLog, addSosContact, registerUser, removeSosContact, getSosContacts, getLogs, getDetailedLogs } from "./db/db_functions.js"
 import sendSMS from "./sms/sms_connection.js"
 import createMessage from "./sms/twilio.js"
+import { getRandomInt } from "./utils/generate_otp.js"
 
-
+var otp;
 
 
 dotenv.config();
@@ -218,6 +219,7 @@ app.delete('/remove_contact', async (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
+    console.log("Hits on /login");
     try {
         const { phoneNumber } = req.body;
 
@@ -228,6 +230,10 @@ app.post('/login', async (req, res) => {
         }
 
         const result = await registerUser(phoneNumber);
+        otp = getRandomInt();
+        const otp_message = `Your OTP is: ${otp}`;
+        const otp_response = await createMessage(phoneNumber, otp_message);
+        console.log("OTP sent successfully. The response is: ", otp_response);
 
         res.status(200).json({
             success: true,
@@ -241,7 +247,6 @@ app.post('/login', async (req, res) => {
         });
     }
 });
-
 app.get('/get_location', async (req, res) => {
     try {
         const lat = req.query.lat;
@@ -259,6 +264,15 @@ app.get('/get_location', async (req, res) => {
     }
 });
 
+app.post('/verify_otp', async (req, res) => {
+    const { otp } = req.body;
+    if(otp === otp){
+        res.status(200).json({ success: true, message: 'OTP verified successfully' });
+    }
+    else{
+        res.status(400).json({ success: false, message: 'OTP verification failed' });
+    }
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running at: ${PORT}`);
@@ -266,7 +280,7 @@ app.listen(PORT, () => {
 
 app.post('/save_settings', async (req, res) => {
     try {
-        const { email, address } = req.body;
+        let { email, address } = req.body;
         if(!email) email=""
         if(!address) address=""
         const result = await save_settings(email, address);
