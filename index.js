@@ -323,6 +323,9 @@ app.post('/login', async (req, res) => {
             otp: generatedOtp,
             expiresAt: Date.now() + 5 * 60 * 1000
         });
+        
+        console.log(`OTP stored for phone: ${phoneNumber}, OTP: ${generatedOtp}`);
+        console.log(`OTP store now contains: ${Array.from(otpStore.keys())}`);
 
         const otp_message = `Your Suraksha App OTP is: ${generatedOtp}. Valid for 5 minutes.`;
         
@@ -369,6 +372,9 @@ app.post('/verify_otp', async (req, res) => {
     try {
         const { otp: userOtp, phoneNumber } = req.body;
         
+        console.log(`OTP Verification attempt - Phone: ${phoneNumber}, OTP: ${userOtp}`);
+        console.log(`Current OTP store keys: ${Array.from(otpStore.keys())}`);
+        
         if (!userOtp || !phoneNumber) {
             return res.status(400).json({ 
                 success: false, 
@@ -377,6 +383,7 @@ app.post('/verify_otp', async (req, res) => {
         }
 
         const storedData = otpStore.get(phoneNumber);
+        console.log(`Stored data for ${phoneNumber}:`, storedData);
 
         if (!storedData) {
             return res.status(400).json({ 

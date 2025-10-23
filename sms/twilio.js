@@ -5,7 +5,7 @@ dotenv.config();
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
-const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER || "+1234567890";
+const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 
 let client = null;
 if (accountSid && authToken && accountSid.startsWith('AC') && authToken.length >= 20) {
