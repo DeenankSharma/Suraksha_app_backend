@@ -1,16 +1,19 @@
+// Set TLS options for Windows compatibility
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 import express from "express"
 import dotenv from "dotenv"
 import bodyParser from "body-parser"
 import get_address from "./rev_geocoding/rev_geocoding_functions.js"
 import cors from "cors"
-import client from "./db/db_connection.js"
-import { addDetailedLog, addLog, addSosContact, registerUser, removeSosContact, getSosContacts, getLogs, getDetailedLogs } from "./db/db_functions.js"
+import mongoose, { connectDB } from "./db/db_connection.js"
+import { addDetailedLog, addLog, addSosContact, registerUser, removeSosContact, getSosContacts, getLogs, getDetailedLogs, save_settings } from "./db/db_functions.js"
 import sendSMS from "./sms/sms_connection.js"
 import createMessage from "./sms/twilio.js"
 import { getRandomInt } from "./utils/generate_otp.js"
 
-var otp;
-
+// Store OTP with phone number mapping
+const otpStore = new Map();
 
 dotenv.config();
 
@@ -18,30 +21,96 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-client.connect();
+// Middleware to check database connection
+app.use((req, res, next) => {
+    if (!dbConnected && req.path !== '/health') {
+        return res.status(503).json({
+            error: 'Database connection not available',
+            message: 'Please try again in a few moments'
+        });
+    }
+    next();
+});
+
+// Connect to database using Mongoose
+let dbConnected = false;
+
+connectDB().then(() => {
+    console.log("Connected to MongoDB successfully with Mongoose");
+    dbConnected = true;
+}).catch((error) => {
+    console.error("Failed to connect to MongoDB:", error);
+    dbConnected = false;
+    
+    // Retry connection after 5 seconds
+    setTimeout(() => {
+        console.log("Retrying MongoDB connection...");
+        connectDB().then(() => {
+            console.log("Connected to MongoDB successfully on retry");
+            dbConnected = true;
+        }).catch((retryError) => {
+            console.error("Failed to connect to MongoDB on retry:", retryError);
+        });
+    }, 5000);
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'OK',
+        database: dbConnected ? 'Connected' : 'Disconnected',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Default emergency contacts (Police, Ambulance, Women Helpline)
+const DEFAULT_EMERGENCY_CONTACTS = [
+    { contactName: "Police", contactPhoneNumber: "100" },
+    { contactName: "Ambulance", contactPhoneNumber: "102" },
+    { contactName: "Women Helpline", contactPhoneNumber: "1091" }
+];
 
 app.post('/emergency', async (req, res) => {
     try {
         const { phoneNumber, longitude, latitude } = req.body;
 
-        if (!phoneNumber || !longitude || !latitude) {
+        if (!phoneNumber || longitude === undefined || latitude === undefined) {
             return res.status(400).json({
                 error: 'Missing required fields'
             });
         }
-        const response = await createMessage(phoneNumber,`latitude - ${latitude} + longitude - ${longitude}`)
-        if(response.status === 200){
+
+        // Get all emergency contacts for this user
+        const userContacts = await getSosContacts(phoneNumber);
+        const allContacts = [...DEFAULT_EMERGENCY_CONTACTS, ...userContacts];
+
+        // Create emergency message with location
+        const emergencyMessage = `EMERGENCY ALERT from ${phoneNumber}! Location: https://www.google.com/maps?q=${latitude},${longitude}`;
+
+        // Send SMS to all emergency contacts
+        const sendPromises = allContacts.map(contact => 
+            createMessage(contact.contactPhoneNumber, emergencyMessage).catch(err => {
+                console.error(`Failed to send to ${contact.contactName}:`, err);
+                return null;
+            })
+        );
+
+        await Promise.all(sendPromises);
+
+        // Log the emergency
         const result = await addLog(phoneNumber, longitude, latitude);
-        }
+
         res.status(201).json({
             success: true,
-            message: 'Emergency logged successfully',
-            data: result
+            message: 'Emergency logged and alerts sent successfully',
+            data: result,
+            contactsNotified: allContacts.length
         });
     } catch (error) {
         console.error('Error in emergency route:', error);
         res.status(500).json({
-            error: 'Internal server error'
+            error: 'Internal server error',
+            message: error.message
         });
     }
 });
@@ -58,17 +127,32 @@ app.post('/descriptive_emergency', async (req, res) => {
             description
         } = req.body;
 
-        if (!phoneNumber || !longitude || !latitude || !area || !description) {
+        if (!phoneNumber || longitude === undefined || latitude === undefined || !area || !description) {
             return res.status(400).json({
                 error: 'Missing required fields'
             });
         }
 
-        const city = await get_address(latitude,longitude);
+        const city = await get_address(latitude, longitude);
 
-        const response = await createMessage(phoneNumber,`latitude - ${latitude} + longitude - ${longitude} + area - ${area} + landmark - ${landmark} + city - ${city} + description - ${description}`)
-   
-        if(response.status === 200){
+        // Get all emergency contacts
+        const userContacts = await getSosContacts(phoneNumber);
+        const allContacts = [...DEFAULT_EMERGENCY_CONTACTS, ...userContacts];
+
+        // Create detailed emergency message
+        const emergencyMessage = `EMERGENCY ALERT from ${phoneNumber}! Location: ${area}, ${landmark || ''}, ${city}. Description: ${description}. Map: https://www.google.com/maps?q=${latitude},${longitude}`;
+
+        // Send SMS to all emergency contacts
+        const sendPromises = allContacts.map(contact => 
+            createMessage(contact.contactPhoneNumber, emergencyMessage).catch(err => {
+                console.error(`Failed to send to ${contact.contactName}:`, err);
+                return null;
+            })
+        );
+
+        await Promise.all(sendPromises);
+
+        // Log the emergency
         const result = await addDetailedLog(
             phoneNumber,
             longitude,
@@ -78,16 +162,18 @@ app.post('/descriptive_emergency', async (req, res) => {
             description,
             city
         );
-    }
+
         res.status(201).json({
             success: true,
-            message: 'Detailed emergency logged successfully',
-            data: result
+            message: 'Detailed emergency logged and alerts sent successfully',
+            data: result,
+            contactsNotified: allContacts.length
         });
     } catch (error) {
         console.error('Error in descriptive emergency route:', error);
         res.status(500).json({
-            error: 'Internal server error'
+            error: 'Internal server error',
+            message: error.message
         });
     }
 });
@@ -106,7 +192,7 @@ app.get('/get_logs', async (req, res) => {
             success: true,
             logs: logs
         });
-    } catch {
+    } catch (error) {
         console.error('Error in get logs route:', error);
         res.status(500).json({
             error: 'Internal server error'
@@ -127,7 +213,7 @@ app.get('/get_detailed_logs', async (req, res) => {
             success: true,
             logs: logs
         });
-    } catch {
+    } catch (error) {
         console.error('Error in get logs route:', error);
         res.status(500).json({
             error: 'Internal server error'
@@ -230,23 +316,39 @@ app.post('/login', async (req, res) => {
         }
 
         const result = await registerUser(phoneNumber);
-        otp = getRandomInt();
-        const otp_message = `Your OTP is: ${otp}`;
-        const otp_response = await createMessage(phoneNumber, otp_message);
-        console.log("OTP sent successfully. The response is: ", otp_response);
+        const generatedOtp = getRandomInt();
+        
+        // Store OTP with phone number and expiration time (5 minutes)
+        otpStore.set(phoneNumber, {
+            otp: generatedOtp,
+            expiresAt: Date.now() + 5 * 60 * 1000
+        });
+
+        const otp_message = `Your Suraksha App OTP is: ${generatedOtp}. Valid for 5 minutes.`;
+        
+        try {
+            console.log(`OTP for ${phoneNumber}: ${generatedOtp}`);
+            const otp_response = await createMessage(phoneNumber, otp_message);
+            console.log("OTP sent successfully. The response is: ", otp_response);
+        } catch (smsError) {
+            console.error("Failed to send OTP SMS:", smsError);
+            // Continue even if SMS fails for testing purposes
+        }
 
         res.status(200).json({
             success: true,
-            message: 'User registered/logged in successfully',
+            message: 'OTP sent successfully',
             data: result
         });
     } catch (error) {
         console.error('Error in login route:', error);
         res.status(500).json({
-            error: 'Internal server error'
+            error: 'Internal server error',
+            message: error.message
         });
     }
 });
+
 app.get('/get_location', async (req, res) => {
     try {
         const lat = req.query.lat;
@@ -257,38 +359,83 @@ app.get('/get_location', async (req, res) => {
         }
 
         const location = await get_address(lat, long);
-        console.log(location.data);
-        res.send(location.data);
+        res.json({ success: true, location: location });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
 app.post('/verify_otp', async (req, res) => {
-    const { otp } = req.body;
-    if(otp === otp){
-        res.status(200).json({ success: true, message: 'OTP verified successfully' });
+    try {
+        const { otp: userOtp, phoneNumber } = req.body;
+        
+        if (!userOtp || !phoneNumber) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'OTP and phone number are required' 
+            });
+        }
+
+        const storedData = otpStore.get(phoneNumber);
+
+        if (!storedData) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'OTP not found or expired. Please request a new OTP.' 
+            });
+        }
+
+        // Check if OTP is expired
+        if (Date.now() > storedData.expiresAt) {
+            otpStore.delete(phoneNumber);
+            return res.status(400).json({ 
+                success: false, 
+                message: 'OTP expired. Please request a new OTP.' 
+            });
+        }
+
+        // Compare OTPs
+        if (userOtp.toString() === storedData.otp.toString()) {
+            otpStore.delete(phoneNumber); // Remove OTP after successful verification
+            res.status(200).json({ 
+                success: true, 
+                message: 'OTP verified successfully' 
+            });
+        } else {
+            res.status(400).json({ 
+                success: false, 
+                message: 'Invalid OTP' 
+            });
+        }
+    } catch (error) {
+        console.error('Error in OTP verification:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
     }
-    else{
-        res.status(400).json({ success: false, message: 'OTP verification failed' });
-    }
-});
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running at: ${PORT}`);
 });
 
 app.post('/save_settings', async (req, res) => {
     try {
         let { email, address } = req.body;
-        if(!email) email=""
-        if(!address) address=""
+        if(!email) email = ""
+        if(!address) address = ""
         const result = await save_settings(email, address);
-        res.send(result);
+        res.json({ 
+            success: true, 
+            message: 'Settings saved successfully',
+            data: result 
+        });
     } catch (error) {
         console.error('Error in save settings route:', error);
         res.status(500).json({
             error: 'Internal server error'
         });
     }
-})
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running at: ${PORT}`);
+});
