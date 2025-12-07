@@ -1,10 +1,10 @@
 
 import get_address from "../rev_geocoding/rev_geocoding_functions.js";
-import client from "./db_connection.js";
+import mongoose from "./db_connection.js";
 
 async function addLog(phoneNumber, longitude, latitude) {
   try {
-      const database = client.db("women_safety");
+      const database = mongoose.connection.db;
       const logs = database.collection("logs");
       const city = await get_address(latitude,longitude);
       const logDoc = {
@@ -25,7 +25,7 @@ async function addLog(phoneNumber, longitude, latitude) {
 
 async function addDetailedLog(phoneNumber, longitude, latitude, area, landmark, description) {
   try {
-      const database = client.db("women_safety");
+      const database = mongoose.connection.db;
       const detailedLogs = database.collection("detailed_logs");
       const city = await get_address(latitude,longitude);
       const detailedLogDoc = {
@@ -49,7 +49,7 @@ async function addDetailedLog(phoneNumber, longitude, latitude, area, landmark, 
 
 async function getLogs(phoneNumber, startDate = null, endDate = null) {
     try {
-        const database = client.db("women_safety");
+        const database = mongoose.connection.db;
         const logs = database.collection("logs");
         
         let query = { phoneNumber: phoneNumber };
@@ -78,7 +78,7 @@ async function getLogs(phoneNumber, startDate = null, endDate = null) {
 
 async function getDetailedLogs(phoneNumber, startDate = null, endDate = null) {
     try {
-        const database = client.db("women_safety");
+        const database = mongoose.connection.db;
         const detailedLogs = database.collection("detailed_logs");
         
         let query = { phoneNumber: phoneNumber };
@@ -107,7 +107,7 @@ async function getDetailedLogs(phoneNumber, startDate = null, endDate = null) {
 
 async function getSosContacts(userPhoneNumber) {
   try {
-      const database = client.db("women_safety");
+      const database = mongoose.connection.db;
       const sosContacts = database.collection("sos_contacts");
       
       const contacts = await sosContacts.find({ 
@@ -124,7 +124,7 @@ async function getSosContacts(userPhoneNumber) {
 
 async function addSosContact(userPhoneNumber, contactName, contactPhoneNumber) {
   try {
-      const database = client.db("women_safety");
+      const database = mongoose.connection.db;
       const sosContacts = database.collection("sos_contacts");
       
       const contactDoc = {
@@ -145,7 +145,7 @@ async function addSosContact(userPhoneNumber, contactName, contactPhoneNumber) {
 
 async function removeSosContact(userPhoneNumber, contactPhoneNumber) {
   try {
-      const database = client.db("women_safety");
+      const database = mongoose.connection.db;
       const sosContacts = database.collection("sos_contacts");
       
       const result = await sosContacts.deleteOne({
@@ -163,7 +163,7 @@ async function removeSosContact(userPhoneNumber, contactPhoneNumber) {
 
 async function registerUser(phoneNumber) {
   try {
-      const database = client.db("women_safety");
+      const database = mongoose.connection.db;
       const registeredUsers = database.collection("registered_users");
  
       const existingUser = await registeredUsers.findOne({ phoneNumber: phoneNumber });
@@ -199,7 +199,7 @@ async function registerUser(phoneNumber) {
 
 async function save_settings(email, address) {
   try {
-      const database = client.db("women_safety");
+      const database = mongoose.connection.db;
       const profile = database.collection("profile");
       const result = await profile.insertOne({email, address});
       return result;
