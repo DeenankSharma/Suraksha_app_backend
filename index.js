@@ -7,7 +7,7 @@ import bodyParser from "body-parser"
 import get_address from "./rev_geocoding/rev_geocoding_functions.js"
 import cors from "cors"
 import connectDB from './db/db_connection.js';
-import { addDetailedLog, addLog, addSosContact, registerUser, removeSosContact, getSosContacts, getLogs, getDetailedLogs, save_settings } from "./db/db_functions.js"
+import { addDetailedLog, addLog, addSosContact, registerUser, removeSosContact, getSosContacts, getLogs, getDetailedLogs, save_settings, deleteUser } from "./db/db_functions.js"
 import sendSMS from "./sms/sms_connection.js"
 import createMessage from "./sms/twilio.js"
 import { getRandomInt } from "./utils/generate_otp.js"
@@ -61,7 +61,7 @@ app.post('/emergency', async (req, res) => {
 
         // Get all emergency contacts for this user
         const userContacts = await getSosContacts(phoneNumber);
-        const allContacts = [...DEFAULT_EMERGENCY_CONTACTS, ...userContacts];
+        const allContacts = [...userContacts];
 
         // Create emergency message with location
         const emergencyMessage = `EMERGENCY ALERT from ${phoneNumber}! Location: https://www.google.com/maps?q=${latitude},${longitude}`;
@@ -78,7 +78,6 @@ app.post('/emergency', async (req, res) => {
 
         // Log the emergency
         const result = await addLog(phoneNumber, longitude, latitude);
-
         res.status(201).json({
             success: true,
             message: 'Emergency logged and alerts sent successfully',
@@ -316,6 +315,7 @@ app.post('/login', async (req, res) => {
         
         console.log(`OTP stored for phone: ${phoneNumber}, OTP: ${generatedOtp}`);
         console.log(`OTP store now contains: ${Array.from(otpStore.keys())}`);
+        console.log(`Stored OTP data:`, otpStore.get(phoneNumber));
 
         const otp_message = `Your Suraksha App OTP is: ${generatedOtp}. Valid for 5 minutes.`;
         
