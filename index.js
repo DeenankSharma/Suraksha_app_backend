@@ -21,46 +21,23 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Middleware to check database connection
-app.use((req, res, next) => {
-    if (!dbConnected && req.path !== '/health') {
-        return res.status(503).json({
-            error: 'Database connection not available',
-            message: 'Please try again in a few moments'
+// Health check endpoint
+app.get('/health', async (req, res) => {
+    try {
+        await connectDB();
+        res.status(200).json({
+            status: 'OK',
+            database: 'Connected',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(503).json({
+            status: 'Error',
+            database: 'Disconnected',
+            error: error.message,
+            timestamp: new Date().toISOString()
         });
     }
-    next();
-});
-
-// Connect to database using Mongoose
-let dbConnected = false;
-
-connectDB().then(() => {
-    console.log("Connected to MongoDB successfully with Mongoose");
-    dbConnected = true;
-}).catch((error) => {
-    console.error("Failed to connect to MongoDB:", error);
-    dbConnected = false;
-    
-    // Retry connection after 5 seconds
-    setTimeout(() => {
-        console.log("Retrying MongoDB connection...");
-        connectDB().then(() => {
-            console.log("Connected to MongoDB successfully on retry");
-            dbConnected = true;
-        }).catch((retryError) => {
-            console.error("Failed to connect to MongoDB on retry:", retryError);
-        });
-    }, 5000);
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.status(200).json({
-        status: 'OK',
-        database: dbConnected ? 'Connected' : 'Disconnected',
-        timestamp: new Date().toISOString()
-    });
 });
 
 // Default emergency contacts (Police, Ambulance, Women Helpline)
@@ -72,6 +49,8 @@ const DEFAULT_EMERGENCY_CONTACTS = [
 
 app.post('/emergency', async (req, res) => {
     try {
+        await connectDB(); // Connect to database
+        
         const { phoneNumber, longitude, latitude } = req.body;
 
         if (!phoneNumber || longitude === undefined || latitude === undefined) {
@@ -118,6 +97,8 @@ app.post('/emergency', async (req, res) => {
 
 app.post('/descriptive_emergency', async (req, res) => {
     try {
+        await connectDB(); // Connect to database
+        
         const {
             phoneNumber,
             longitude,
@@ -180,6 +161,8 @@ app.post('/descriptive_emergency', async (req, res) => {
 
 app.get('/get_logs', async (req, res) => {
     try {
+        await connectDB(); // Connect to database
+        
         const { phoneNumber } = req.query;
         if (!phoneNumber) {
             return res.status(400).json({
@@ -202,6 +185,8 @@ app.get('/get_logs', async (req, res) => {
 
 app.get('/get_detailed_logs', async (req, res) => {
     try {
+        await connectDB(); // Connect to database
+        
         const { phoneNumber } = req.query;
         if (!phoneNumber) {
             return res.status(400).json({
@@ -221,10 +206,10 @@ app.get('/get_detailed_logs', async (req, res) => {
     }
 })
 
-
-
 app.get('/saved_contacts', async (req, res) => {
     try {
+        await connectDB(); // Connect to database
+        
         const { phoneNumber } = req.query;
 
         if (!phoneNumber) {
@@ -247,9 +232,10 @@ app.get('/saved_contacts', async (req, res) => {
     }
 });
 
-
 app.post('/add_contact', async (req, res) => {
     try {
+        await connectDB(); // Connect to database
+        
         const { userPhoneNumber, contactName, contactPhoneNumber } = req.body;
 
         if (!userPhoneNumber || !contactName || !contactPhoneNumber) {
@@ -273,9 +259,10 @@ app.post('/add_contact', async (req, res) => {
     }
 });
 
-
 app.delete('/remove_contact', async (req, res) => {
     try {
+        await connectDB(); // Connect to database
+        
         const { userPhoneNumber, contactPhoneNumber } = req.body;
 
         if (!userPhoneNumber || !contactPhoneNumber) {
@@ -307,6 +294,8 @@ app.delete('/remove_contact', async (req, res) => {
 app.post('/login', async (req, res) => {
     console.log("Hits on /login");
     try {
+        await connectDB(); // Connect to database
+        
         const { phoneNumber } = req.body;
 
         if (!phoneNumber) {
@@ -354,6 +343,7 @@ app.post('/login', async (req, res) => {
 
 app.get('/get_location', async (req, res) => {
     try {
+        // No database connection needed for this route
         const lat = req.query.lat;
         const long = req.query.long;
 
@@ -370,6 +360,7 @@ app.get('/get_location', async (req, res) => {
 
 app.post('/verify_otp', async (req, res) => {
     try {
+        // No database connection needed - OTP is stored in memory
         const { otp: userOtp, phoneNumber } = req.body;
         
         console.log(`OTP Verification attempt - Phone: ${phoneNumber}, OTP: ${userOtp}`);
@@ -425,6 +416,8 @@ app.post('/verify_otp', async (req, res) => {
 
 app.post('/save_settings', async (req, res) => {
     try {
+        await connectDB(); // Connect to database
+        
         let { email, address } = req.body;
         if(!email) email = ""
         if(!address) address = ""
@@ -442,10 +435,10 @@ app.post('/save_settings', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running at: ${PORT}`);
-});
-
+// // Remove this for Vercel - not needed in serverless
+// const PORT = process.env.PORT || 3000;
+// app.listen(PORT, () => {
+//     console.log(`Server is running at: ${PORT}`);
+// });
 
 export default app;
