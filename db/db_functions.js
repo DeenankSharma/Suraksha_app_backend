@@ -1,6 +1,6 @@
 
 import get_address from "../rev_geocoding/rev_geocoding_functions.js";
-import mongoose from "./db_connection.js";
+import { mongoose } from "./db_connection.js";
 
 async function addLog(phoneNumber, longitude, latitude) {
   try {
