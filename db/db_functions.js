@@ -209,4 +209,17 @@ async function save_settings(email, address) {
   }
 }
 
-export {addDetailedLog,addLog,addSosContact,registerUser,removeSosContact,getSosContacts,getLogs,getDetailedLogs,save_settings}
+async function deleteUser(phoneNumber) {
+  try {
+      const database = mongoose.connection.db;
+      const registeredUsers = database.collection("registered_users");
+      
+      const result = await registeredUsers.deleteOne({ phoneNumber: phoneNumber });
+      return result;
+  } catch (error) {
+      console.error("Error deleting user:", error);
+      throw error;
+  }
+}
+
+export {addDetailedLog,addLog,addSosContact,registerUser,removeSosContact,getSosContacts,getLogs,getDetailedLogs,save_settings,deleteUser}

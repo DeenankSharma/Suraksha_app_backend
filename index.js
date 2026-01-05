@@ -310,7 +310,8 @@ app.post('/login', async (req, res) => {
         // Store OTP with phone number and expiration time (5 minutes)
         otpStore.set(phoneNumber, {
             otp: generatedOtp,
-            expiresAt: Date.now() + 5 * 60 * 1000
+            expiresAt: Date.now() + 5 * 60 * 1000,
+            isNewUser: !result.existingUser // Check if registerUser returned existingUser: false
         });
         
         console.log(`OTP stored for phone: ${phoneNumber}, OTP: ${generatedOtp}`);
@@ -385,6 +386,10 @@ app.post('/verify_otp', async (req, res) => {
 
         // Check if OTP is expired
         if (Date.now() > storedData.expiresAt) {
+            if(storedData.isNewUser) {
+                await connectDB();
+                await deleteUser(phoneNumber);
+            }
             otpStore.delete(phoneNumber);
             return res.status(400).json({ 
                 success: false, 
@@ -400,10 +405,25 @@ app.post('/verify_otp', async (req, res) => {
                 message: 'OTP verified successfully' 
             });
         } else {
-            res.status(400).json({ 
-                success: false, 
-                message: 'Invalid OTP' 
-            });
+            if (storedData.isNewUser) {
+                await connectDB();
+                await deleteUser(phoneNumber);
+                
+                // We must also delete the OTP session to force them to /login again
+                // (otherwise they could retry with the correct OTP, but their DB entry would be gone)
+                otpStore.delete(phoneNumber);
+                
+                res.status(400).json({ 
+                    success: false, 
+                    message: 'Invalid OTP. Registration cancelled. Please login again.' 
+                });
+            } else {
+                // If it was an existing user, just fail the OTP without deleting the account
+                res.status(400).json({ 
+                    success: false, 
+                    message: 'Invalid OTP' 
+                });
+            }
         }
     } catch (error) {
         console.error('Error in OTP verification:', error);
