@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
-
-const uri = "mongodb+srv://utsosarkar1_db_user:UDG5e2BZrrPDFjLS@surakshacluster.qgq9rrg.mongodb.net/?retryWrites=true&w=majority&appName=surakshacluster";
+import dotenv from "dotenv";
+dotenv.config();
+const uri = process.env.MONGO_URI;
 
 const options = {
   serverSelectionTimeoutMS: 30000,
