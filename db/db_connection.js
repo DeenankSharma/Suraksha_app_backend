@@ -1,23 +1,27 @@
-// db/connectDB.js (or wherever this file is)
+// db/connectDB.js
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 
 dotenv.config();
-
 const uri = process.env.MONGO_URI;
 
+// Check if URI exists
+if (!uri) {
+  console.error('MONGO_URI is not defined in environment variables!');
+}
+
 const options = {
-  serverSelectionTimeoutMS: 5000, // Reduced from 30s
+  serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
-  maxPoolSize: 10,
-  minPoolSize: 2,
 };
 
-// Cached connection variable - CRITICAL for serverless
 let cachedConnection = null;
 
 const connectDB = async () => {
-  // If already connected, return immediately
+  if (!uri) {
+    throw new Error('MONGO_URI environment variable is not defined');
+  }
+
   if (cachedConnection && mongoose.connection.readyState === 1) {
     console.log("Using cached MongoDB connection");
     return cachedConnection;
@@ -25,8 +29,8 @@ const connectDB = async () => {
 
   try {
     console.log("Establishing new MongoDB connection...");
+    console.log("URI starts with:", uri.substring(0, 20)); // Log first 20 chars for debugging
     
-    // Connect with mongoose
     const connection = await mongoose.connect(uri, options);
     
     cachedConnection = connection;
@@ -34,11 +38,11 @@ const connectDB = async () => {
     
     return connection;
   } catch (error) {
-    console.error("MongoDB connection error:", error.message);
-    cachedConnection = null; // Reset cache on error
-    throw error;
+    console.error("MongoDB connection failed:", error.message);
+    console.error("Error code:", error.code);
+    cachedConnection = null;
+    throw new Error(`Database connection not available: ${error.message}`);
   }
 };
 
 export default connectDB;
-export { mongoose };
