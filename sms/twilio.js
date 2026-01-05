@@ -7,18 +7,7 @@ const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 
-let client = null;
-if (accountSid && authToken && accountSid.startsWith('AC') && authToken.length >= 20) {
-  try {
-    client = twilio(accountSid, authToken);
-    console.log('Twilio client initialized successfully');
-  } catch (error) {
-    console.log('Twilio initialization failed:', error.message);
-    client = null;
-  }
-} else {
-  console.log('Twilio credentials not configured or invalid. SMS will be logged to console instead.');
-}
+let client = twilio(accountSid, authToken);
 
 async function createMessage(phoneNumber, message_to_send) {
   if (client) {

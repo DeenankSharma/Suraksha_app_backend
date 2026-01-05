@@ -1,4 +1,7 @@
 import axios from 'axios';
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const sendSMS = async (phoneNumber, message) => {
   try {
