@@ -6,7 +6,7 @@ import dotenv from "dotenv"
 import bodyParser from "body-parser"
 import get_address from "./rev_geocoding/rev_geocoding_functions.js"
 import cors from "cors"
-import mongoose, { connectDB } from "./db/db_connection.js"
+import connectDB from './db/db_connection.js';
 import { addDetailedLog, addLog, addSosContact, registerUser, removeSosContact, getSosContacts, getLogs, getDetailedLogs, save_settings } from "./db/db_functions.js"
 import sendSMS from "./sms/sms_connection.js"
 import createMessage from "./sms/twilio.js"
