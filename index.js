@@ -47,6 +47,20 @@ const DEFAULT_EMERGENCY_CONTACTS = [
     { contactName: "Women Helpline", contactPhoneNumber: "1091" }
 ];
 
+// app.post('/test_geo_location', async (req, res) => {
+//     try {
+//         const { latitude, longitude } = req.body;
+//         if (latitude === undefined || longitude === undefined) {
+//             return res.status(400).json({ error: 'Latitude and longitude are required' });
+//         }
+
+//         const location = await get_address(latitude, longitude);
+//         res.json({ success: true, location: location });
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });
+
 app.post('/emergency', async (req, res) => {
     try {
         await connectDB(); // Connect to database
@@ -113,14 +127,14 @@ app.post('/descriptive_emergency', async (req, res) => {
             });
         }
 
-        const city = await get_address(latitude, longitude);
+        // const city = await get_address(latitude, longitude);
 
         // Get all emergency contacts
         const userContacts = await getSosContacts(phoneNumber);
         const allContacts = [...DEFAULT_EMERGENCY_CONTACTS, ...userContacts];
 
         // Create detailed emergency message
-        const emergencyMessage = `EMERGENCY ALERT from ${phoneNumber}! Location: ${area}, ${landmark || ''}, ${city}. Description: ${description}. Map: https://www.google.com/maps?q=${latitude},${longitude}`;
+        const emergencyMessage = `EMERGENCY ALERT from ${phoneNumber}! Location: ${area}, ${landmark || ''}. Description: ${description}. Map: https://www.google.com/maps?q=${latitude},${longitude}`;
 
         // Send SMS to all emergency contacts
         const sendPromises = allContacts.map(contact => 
@@ -140,7 +154,7 @@ app.post('/descriptive_emergency', async (req, res) => {
             area,
             landmark,
             description,
-            city
+            // city
         );
 
         res.status(201).json({

@@ -6,12 +6,11 @@ async function addLog(phoneNumber, longitude, latitude) {
   try {
       const database = mongoose.connection.db;
       const logs = database.collection("logs");
-      const city = await get_address(latitude,longitude);
+    //   const city = await get_address(latitude,longitude);
       const logDoc = {
           phoneNumber: phoneNumber,
           longitude: longitude,
           latitude: latitude,
-          city: city,
           timestamp: new Date()
       };
       
@@ -27,7 +26,7 @@ async function addDetailedLog(phoneNumber, longitude, latitude, area, landmark, 
   try {
       const database = mongoose.connection.db;
       const detailedLogs = database.collection("detailed_logs");
-      const city = await get_address(latitude,longitude);
+    //   const city = await get_address(latitude,longitude);
       const detailedLogDoc = {
           phoneNumber: phoneNumber,
           longitude: longitude,
@@ -35,7 +34,7 @@ async function addDetailedLog(phoneNumber, longitude, latitude, area, landmark, 
           area: area,
           landmark: landmark,
           description: description,
-          city: city,
+        //   city: city,
           timestamp: new Date()
       };
       
